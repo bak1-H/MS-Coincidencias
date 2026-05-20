@@ -1,12 +1,12 @@
 # MS-Coincidencias - Microservicio de Gestión de Coincidencias
 
-## 📋 Descripción
+## Descripción General
 
-MS-Coincidencias es un microservicio de la arquitectura de **SanoSys Salvos** que gestiona la identificación y seguimiento de coincidencias en reportes del sistema. Implementa una arquitectura moderna basada en patrones de diseño reconocidos e integración asíncrona mediante colas de mensajería.
+MS-Coincidencias es un microservicio escalable de la arquitectura SanoSys Salvos que gestiona la identificación y seguimiento de coincidencias en reportes del sistema. Implementa una arquitectura moderna basada en patrones de diseño reconocidos e integración asíncrona mediante colas de mensajería (RabbitMQ).
 
 ---
 
-## 🏗️ Patrones de Diseño Utilizados
+## Patrones de Diseño Implementados
 
 ### 1. **Patrón MVC (Model-View-Controller)**
 - **Model**: `coincidenciaModel.java`, `reporteModel.java` - Entidades JPA
@@ -38,7 +38,7 @@ MS-Coincidencias es un microservicio de la arquitectura de **SanoSys Salvos** qu
 
 ---
 
-## 🚀 Tecnologías
+## Stack Tecnológico
 
 | Tecnología | Versión | Descripción |
 |------------|---------|-------------|
@@ -54,7 +54,7 @@ MS-Coincidencias es un microservicio de la arquitectura de **SanoSys Salvos** qu
 
 ---
 
-## 📦 Requisitos Previos
+## Requisitos Previos
 
 - **Java 21** (JDK)
 - **Maven 3.8.1+**
@@ -64,7 +64,7 @@ MS-Coincidencias es un microservicio de la arquitectura de **SanoSys Salvos** qu
 
 ---
 
-## 📁 Estructura del Proyecto
+## Estructura del Proyecto
 
 ```
 MS-Coincidencias/
@@ -87,7 +87,7 @@ MS-Coincidencias/
 
 ---
 
-## 🔧 Configuración del Entorno
+## Configuración del Entorno
 
 ### 1. Variables de Entorno (archivo `.env`)
 
@@ -141,7 +141,7 @@ logging.level.cl.sanosysalvos.reporte=DEBUG
 
 ---
 
-## 🚀 Instrucciones de Ejecución
+## Instrucciones de Ejecución
 
 ### Opción 1: Ejecución Local con Docker
 
@@ -249,7 +249,7 @@ docker-compose up -d
 
 ---
 
-## 🧪 Pruebas y Validación
+## Pruebas y Validación
 
 ### Pruebas Básicas con cURL
 
@@ -286,19 +286,6 @@ docker exec -it ms-coincidencias-postgres psql -U postgres -d fullstack_db -c "S
 
 ---
 
-## 📊 API REST - Documentación
-
-La documentación interactiva está disponible en **Swagger UI**:
-
-```
-http://localhost:8082/swagger-ui.html
-```
-
-También puedes consultar la especificación OpenAPI:
-```
-http://localhost:8082/v3/api-docs
-```
-
 ### Endpoints Principales
 
 | Método | Ruta | Descripción |
@@ -312,7 +299,7 @@ http://localhost:8082/v3/api-docs
 
 ---
 
-## 🔍 Troubleshooting y Debugging
+## Troubleshooting y Debugging
 
 ### Problema: Port ya está en uso
 
@@ -366,24 +353,3 @@ docker logs -f coincidencias-service
 ```
 
 ---
-
-## 📝 Notas de Desarrollo
-
-- Java 21 con sintaxis moderna
-- Lombok reduce código boilerplate
-- Spring Data JPA maneja CRUD automáticamente
-- RabbitMQ para comunicación asíncrona entre servicios
-
----
-
-## 🔐 Consideraciones de Seguridad para Producción
-
-- Cambiar credenciales default de PostgreSQL y RabbitMQ
-- Implementar autenticación/autorización (Spring Security)
-- Usar HTTPS
-- Implementar rate limiting
-- Usar variables de entorno para credenciales sensibles
-
----
-
-**Versión**: 0.0.1-SNAPSHOT | **Licencia**: Proprietary | **Última actualización**: Mayo 2026
