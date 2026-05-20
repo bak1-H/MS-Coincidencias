@@ -1,0 +1,76 @@
+version: '3.9'
+
+services:
+  # Base de Datos PostgreSQL
+  postgres:
+    image: postgres:16-alpine
+    container_name: ms-coincidencias-postgres
+    environment:
+      POSTGRES_DB: fullstack_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - ms-coincidencias-network
+
+  # Message Broker RabbitMQ
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    container_name: ms-coincidencias-rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    ports:
+      - "5672:5672"      # AMQP port
+      - "15672:15672"    # Management UI port
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: rabbitmq-diagnostics -q ping
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    networks:
+      - ms-coincidencias-network
+
+  # Microservicio MS-Coincidencias (opcional - descomentar para ejecutar en Docker)
+  # coincidencias-service:
+  #   build:
+  #     context: .
+  #     dockerfile: Dockerfile
+  #   container_name: ms-coincidencias-app
+  #   ports:
+  #     - "8082:8082"
+  #   environment:
+  #     SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/fullstack_db
+  #     SPRING_DATASOURCE_USERNAME: postgres
+  #     SPRING_DATASOURCE_PASSWORD: postgres
+  #     SPRING_RABBITMQ_HOST: rabbitmq
+  #     SPRING_RABBITMQ_PORT: 5672
+  #     SPRING_RABBITMQ_USERNAME: guest
+  #     SPRING_RABBITMQ_PASSWORD: guest
+  #   depends_on:
+  #     postgres:
+  #       condition: service_healthy
+  #     rabbitmq:
+  #       condition: service_healthy
+  #   networks:
+  #     - ms-coincidencias-network
+
+volumes:
+  postgres_data:
+    driver: local
+  rabbitmq_data:
+    driver: local
+
+networks:
+  ms-coincidencias-network:
+    driver: bridge
