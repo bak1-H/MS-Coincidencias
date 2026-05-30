@@ -184,68 +184,32 @@ java -jar target/coincidencias-0.0.1-SNAPSHOT.jar
 
 ---
 
-### Opción 2: Ejecución Completa con Docker
+### Opción 2: Ejecución Completa con Docker Compose
 
-#### Paso 1: Construir Imagen Docker
-
-```bash
-mvn clean package
-docker build -t ms-coincidencias:latest .
-```
-
-#### Paso 2: Ejecutar con Docker Compose
-
-Crear archivo `docker-compose.yml` (si no existe):
-
-```yaml
-version: '3.9'
-
-services:
-  postgres:
-    image: postgres:latest
-    environment:
-      POSTGRES_DB: fullstack_db
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-
-  rabbitmq:
-    image: rabbitmq:3-management
-    environment:
-      RABBITMQ_DEFAULT_USER: guest
-      RABBITMQ_DEFAULT_PASS: guest
-    ports:
-      - "5672:5672"
-      - "15672:15672"  # Management UI
-    volumes:
-      - rabbitmq_data:/var/lib/rabbitmq
-
-  coincidencias-service:
-    build: .
-    ports:
-      - "8082:8082"
-    environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/fullstack_db
-      SPRING_DATASOURCE_USERNAME: postgres
-      SPRING_DATASOURCE_PASSWORD: postgres
-      SPRING_RABBITMQ_HOST: rabbitmq
-    depends_on:
-      - postgres
-      - rabbitmq
-
-volumes:
-  postgres_data:
-  rabbitmq_data:
-```
-
-Ejecutar:
+Levanta los tres servicios (PostgreSQL, RabbitMQ y la aplicación) en una sola red orquestada:
 
 ```bash
-docker-compose up -d
+# Construir imagen y levantar el stack completo
+docker compose up --build -d
+
+# Verificar estado y health de cada contenedor
+docker compose ps
+
+# Ver logs de la aplicación
+docker compose logs -f coincidencias-service
+
+# Detener y eliminar contenedores (conserva volúmenes)
+docker compose down
+
+# Detener y eliminar todo, incluyendo volúmenes
+docker compose down -v
 ```
+
+El `docker-compose.yml` orquesta tres servicios con:
+- **Health checks** en todos los servicios
+- **Límites de recursos** (CPU y memoria) por contenedor
+- **Dependencias ordenadas**: la app espera que PostgreSQL y RabbitMQ estén `healthy` antes de iniciar
+- **Reinicio automático** (`restart: unless-stopped`) ante fallos
 
 ---
 
@@ -351,5 +315,126 @@ docker logs -f coincidencias-service
 # Local
 # Los logs se mostrarán en la consola del terminal
 ```
+
+---
+
+## Pipeline CI/CD
+
+El proyecto implementa un pipeline completo de integración y entrega continua mediante **GitHub Actions** con cinco etapas secuenciales:
+
+```
+push / PR
+    │
+    ▼
+[1] build          → Compila el proyecto con Maven
+    │
+    ├──────────────────────────┐
+    ▼                          ▼
+[2] test           [3] security-scan
+    Ejecuta 19         Snyk analiza dependencias
+    tests unitarios    BLOQUEA en HIGH/CRITICAL
+    │                          │
+    └──────────────────────────┘
+                  │
+                  ▼
+          [4] docker-build
+              Construye imagen multi-stage
+              Push a ghcr.io con tags:
+              - branch name
+              - sha-{commit}
+              - latest (solo en main/master)
+                  │
+                  ▼  (solo en push, no en PRs)
+          [5] deploy
+              docker compose up --build -d
+              Espera health check (actuator/health)
+              Smoke test: GET /coincidencias → 200 OK
+              docker compose down -v
+```
+
+### Archivos del pipeline
+
+| Archivo | Propósito |
+|---|---|
+| `.github/workflows/ci-cd.yml` | Pipeline principal (5 jobs) |
+| `.github/workflows/security.yml` | Escaneo de seguridad con Snyk + CodeQL |
+| `.github/dependabot.yml` | Actualizaciones automáticas de dependencias Maven y Actions |
+
+### Configuración requerida
+
+Agregar en GitHub → Settings → Secrets and variables → Actions:
+
+| Secret | Descripción |
+|---|---|
+| `SNYK_TOKEN` | Token de autenticación de [snyk.io](https://snyk.io) (cuenta gratuita) |
+| `GITHUB_TOKEN` | Generado automáticamente por GitHub (no requiere configuración manual) |
+
+---
+
+## Pruebas Automatizadas
+
+Las pruebas se ejecutan en el job `test` del pipeline y **no requieren base de datos ni RabbitMQ** — usan mocks de Mockito.
+
+| Clase | Tests | Qué cubre |
+|---|---|---|
+| `CoincidenciaServiceTest` | 8 | Algoritmo de scoring (umbral 0.60), lógica PERDIDO/VISTO, casos borde |
+| `CoincidenciaControllerTest` | 10 | Endpoints REST: GET, DELETE — status codes y cuerpo JSON |
+| `CoincidenciasApplicationTests` | 1 | Smoke test de arranque |
+
+```bash
+# Ejecutar todos los tests localmente
+./mvnw test
+
+# Ver reporte de resultados
+ls target/surefire-reports/
+```
+
+---
+
+## Análisis de Seguridad
+
+El job `security-scan` del pipeline **bloquea automáticamente** el despliegue si detecta vulnerabilidades de severidad HIGH o CRITICAL:
+
+- **Snyk**: analiza dependencias Maven declaradas en `pom.xml`
+- **CodeQL** (workflow `security.yml`): análisis estático del código Java con reglas `security-and-quality`
+- **Dependabot**: genera pull requests automáticos cada lunes con actualizaciones de dependencias
+
+Los resultados se visualizan en GitHub → pestaña **Security → Code scanning alerts**.
+
+---
+
+## Trazabilidad: Del Desarrollo a Producción
+
+Cada ejecución del pipeline genera evidencia en cada etapa:
+
+| Etapa | Evidencia de trazabilidad |
+|---|---|
+| **Commit** | SHA del commit en todos los tags de la imagen Docker (`sha-{short_sha}`) |
+| **Tests** | Reporte XML subido como Artifact en GitHub Actions (retención 15 días) |
+| **Seguridad** | Reporte SARIF visible en GitHub Security tab |
+| **Imagen Docker** | Digest SHA256 único impreso en logs del job `docker-build` y publicado en `ghcr.io` |
+| **Deploy** | Logs del stack (`docker compose logs`) capturados en el job `deploy` |
+
+La imagen Docker publicada incluye etiquetas de trazabilidad:
+
+```
+ghcr.io/<usuario>/<repo>:latest          ← rama principal
+ghcr.io/<usuario>/<repo>:main            ← nombre de rama
+ghcr.io/<usuario>/<repo>:sha-a1b2c3d     ← commit exacto
+```
+
+---
+
+## Declaración de Uso de Inteligencia Artificial
+
+En el desarrollo de este proyecto se utilizaron herramientas de IA como apoyo técnico:
+
+| Herramienta | Uso aplicado |
+|---|---|
+| **Claude (Anthropic)** | Apoyo en la generación de configuraciones de GitHub Actions, estructura de tests unitarios con Mockito y revisión de la configuración de Docker Compose |
+
+Todo el contenido generado con IA fue revisado, validado y ajustado por el equipo para asegurar coherencia con los requerimientos del proyecto. Las justificaciones técnicas, reflexiones individuales y decisiones de arquitectura son propias del equipo.
+
+Citado según: https://bibliotecas.duoc.cl/ia
 
 ---
