@@ -1,7 +1,7 @@
 # MS-Coincidencias — Evaluación Parcial N°2
-## Ingeniería DevOps · DOY0101
+## Ingeniería DevOps ·
 
-**Integrantes:** [Nombre Integrante 1] · [Nombre Integrante 2]
+**Integrantes:** Maximiliano Arturo Huerta Gonzalez
 
 ---
 
