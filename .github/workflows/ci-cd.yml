@@ -22,7 +22,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Descargar el código fuente
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Configurar Java 21
         uses: actions/setup-java@v4
@@ -53,7 +53,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Descargar el código fuente
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Configurar Java 21
         uses: actions/setup-java@v4
@@ -90,7 +90,7 @@ jobs:
       contents: read
     steps:
       - name: Descargar el código fuente
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Configurar Java 21
         uses: actions/setup-java@v4
@@ -146,7 +146,7 @@ jobs:
 
     steps:
       - name: Descargar el código fuente
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Configurar Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -200,7 +200,7 @@ jobs:
 
     steps:
       - name: Descargar el código fuente
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Levantar el stack completo con Docker Compose
         run: docker compose up --build -d
