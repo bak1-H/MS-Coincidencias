@@ -3,9 +3,9 @@ name: Pipeline de Integración y Entrega Continua
 # Este pipeline se activa cada vez que hacemos push o un pull request a main/master
 on:
   push:
-    branches: [main, master]
+    branches: [main]
   pull_request:
-    branches: [main, master]
+    branches: [main]
 
 env:
   REGISTRY: ghcr.io
