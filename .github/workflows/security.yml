@@ -1,0 +1,100 @@
+name: Análisis de Seguridad del Código
+
+# Este workflow analiza el código en busca de vulnerabilidades.
+# Se ejecuta en cada push, pull request y todos los lunes a las 8am
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  schedule:
+    - cron: '0 8 * * 1'
+
+jobs:
+
+  # ──────────────────────────────────────────────────────
+  # JOB 1: Escaneamos las dependencias del proyecto con
+  # Snyk para detectar vulnerabilidades conocidas
+  # ──────────────────────────────────────────────────────
+  escaneo-snyk:
+    name: Escaneo de Vulnerabilidades con Snyk
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Descargar el código fuente
+        uses: actions/checkout@v4
+
+      - name: Configurar Java 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Dar permisos de ejecución al wrapper de Maven
+        run: chmod +x mvnw
+
+      - name: Compilar el proyecto para el análisis
+        run: ./mvnw clean package -DskipTests
+
+      - name: Instalar Snyk CLI
+        run: npm install -g snyk
+
+      - name: Escanear dependencias con Snyk (falla si hay vulnerabilidades altas)
+        run: snyk test --severity-threshold=high
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+
+      - name: Generar reporte SARIF para GitHub Security
+        run: snyk test --severity-threshold=high --sarif-file-output=snyk.sarif
+        continue-on-error: true
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+
+      - name: Subir reporte a la pestaña Security de GitHub
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: snyk.sarif
+        continue-on-error: true
+
+  # ──────────────────────────────────────────────────────
+  # JOB 2: Analizamos el código estáticamente con CodeQL
+  # para detectar posibles problemas de seguridad
+  # en el código Java que escribimos
+  # ──────────────────────────────────────────────────────
+  analisis-codeql:
+    name: Análisis Estático del Código con CodeQL
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      actions: read
+      contents: read
+
+    steps:
+      - name: Descargar el código fuente
+        uses: actions/checkout@v4
+
+      - name: Inicializar CodeQL para Java
+        uses: github/codeql-action/init@v3
+        with:
+          languages: java
+          queries: security-and-quality
+
+      - name: Configurar Java 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Dar permisos de ejecución al wrapper de Maven
+        run: chmod +x mvnw
+
+      - name: Compilar el proyecto para el análisis de CodeQL
+        run: ./mvnw clean package -DskipTests
+
+      - name: Ejecutar análisis de CodeQL
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:java"

@@ -28,11 +28,15 @@
 	</scm>
 	<properties>
 		<java.version>21</java.version>
+		<!-- Versiones forzadas para corregir vulnerabilidades detectadas por Snyk -->
+		<tomcat.version>11.0.22</tomcat.version>
+		<netty.version>4.2.13.Final</netty.version>
 	</properties>
 	<dependencies>
 		<dependency>
 			<groupId>org.postgresql</groupId>
 			<artifactId>postgresql</artifactId>
+			<version>42.7.11</version>
 			<scope>runtime</scope>
 		</dependency>
 		<dependency>
@@ -60,12 +64,16 @@
 		</dependency>
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-starter-amqp-test</artifactId>
-			<scope>test</scope>
+			<artifactId>spring-boot-starter-actuator</artifactId>
 		</dependency>
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-starter-data-jpa-test</artifactId>
+			<artifactId>spring-boot-starter-test</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.amqp</groupId>
+			<artifactId>spring-rabbit-test</artifactId>
 			<scope>test</scope>
 		</dependency>
 	</dependencies>

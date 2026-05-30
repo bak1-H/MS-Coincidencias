@@ -1,0 +1,21 @@
+# Política de seguridad de Snyk
+# Documentamos aquí las vulnerabilidades que no podemos corregir directamente
+version: v1.25.0
+
+ignore:
+  SNYK-JAVA-IONETTY-16438323:
+    - '*':
+        reason: >
+          Vulnerabilidad transitiva en io.netty introducida por spring-rabbit-test
+          (dependencia de scope test). No tiene upgrade directo disponible y solo
+          afecta al entorno de pruebas, no a producción.
+        expires: 2025-12-31T00:00:00.000Z
+  SNYK-JAVA-IONETTY-16438931:
+    - '*':
+        reason: >
+          Vulnerabilidad transitiva en io.netty introducida por spring-rabbit-test
+          (dependencia de scope test). No tiene upgrade directo disponible y solo
+          afecta al entorno de pruebas, no a producción.
+        expires: 2025-12-31T00:00:00.000Z
+
+patch: {}

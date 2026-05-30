@@ -1,0 +1,241 @@
+name: Pipeline de Integración y Entrega Continua
+
+# Este pipeline se activa cada vez que hacemos push o un pull request a main/master
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+
+  # ──────────────────────────────────────────────────────
+  # ETAPA 1: Compilamos el proyecto para verificar que no
+  # haya errores de compilación antes de continuar
+  # ──────────────────────────────────────────────────────
+  compilacion:
+    name: Compilación del Proyecto
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar el código fuente
+        uses: actions/checkout@v4
+
+      - name: Configurar Java 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Dar permisos de ejecución al wrapper de Maven
+        run: chmod +x mvnw
+
+      - name: Compilar el proyecto
+        run: ./mvnw clean compile -q
+
+      - name: Guardar clases compiladas en caché
+        uses: actions/cache@v4
+        with:
+          path: target/
+          key: compilacion-${{ github.sha }}
+
+  # ──────────────────────────────────────────────────────
+  # ETAPA 2: Ejecutamos las pruebas unitarias para
+  # garantizar que el código funciona correctamente
+  # ──────────────────────────────────────────────────────
+  pruebas-unitarias:
+    name: Ejecución de Pruebas Unitarias
+    needs: compilacion
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar el código fuente
+        uses: actions/checkout@v4
+
+      - name: Configurar Java 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Dar permisos de ejecución al wrapper de Maven
+        run: chmod +x mvnw
+
+      - name: Ejecutar pruebas unitarias
+        run: ./mvnw test
+
+      - name: Guardar reporte de pruebas como evidencia
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: reporte-pruebas-${{ github.sha }}
+          path: target/surefire-reports/
+          retention-days: 15
+
+  # ──────────────────────────────────────────────────────
+  # ETAPA 3: Analizamos la seguridad del proyecto con Snyk
+  # Si encuentra vulnerabilidades HIGH o CRITICAL, el
+  # pipeline se bloquea y no continúa al despliegue
+  # ──────────────────────────────────────────────────────
+  analisis-seguridad:
+    name: Análisis de Seguridad (Snyk)
+    needs: compilacion
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      contents: read
+    steps:
+      - name: Descargar el código fuente
+        uses: actions/checkout@v4
+
+      - name: Configurar Java 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Dar permisos de ejecución al wrapper de Maven
+        run: chmod +x mvnw
+
+      - name: Empaquetar el proyecto para el análisis
+        run: ./mvnw clean package -DskipTests -q
+
+      - name: Instalar Snyk CLI
+        run: npm install -g snyk
+
+      - name: Escanear vulnerabilidades con Snyk (bloquea si hay HIGH o CRITICAL)
+        run: snyk test --severity-threshold=high
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+
+      - name: Generar reporte de seguridad en formato SARIF
+        run: snyk test --severity-threshold=high --sarif-file-output=snyk.sarif
+        continue-on-error: true
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+
+      - name: Publicar reporte en la pestaña Security de GitHub
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        continue-on-error: true
+        with:
+          sarif_file: snyk.sarif
+
+  # ──────────────────────────────────────────────────────
+  # ETAPA 4: Construimos la imagen Docker y la subimos al
+  # registro de contenedores de GitHub (ghcr.io)
+  # Solo se ejecuta si las pruebas y el análisis pasaron
+  # ──────────────────────────────────────────────────────
+  construccion-imagen-docker:
+    name: Construcción y Publicación de Imagen Docker
+    needs: [pruebas-unitarias, analisis-seguridad]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      digest-imagen: ${{ steps.construccion.outputs.digest }}
+      tags-imagen: ${{ steps.metadatos.outputs.tags }}
+
+    steps:
+      - name: Descargar el código fuente
+        uses: actions/checkout@v4
+
+      - name: Configurar Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Iniciar sesión en el registro de GitHub (ghcr.io)
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extraer metadatos para etiquetar la imagen
+        id: metadatos
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha,prefix=sha-,format=short
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' }}
+          labels: |
+            org.opencontainers.image.title=ms-coincidencias
+            org.opencontainers.image.description=Microservicio de coincidencias para mascotas perdidas
+            org.opencontainers.image.revision=${{ github.sha }}
+
+      - name: Construir y publicar la imagen Docker
+        id: construccion
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.metadatos.outputs.tags }}
+          labels: ${{ steps.metadatos.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Mostrar el digest de la imagen (trazabilidad)
+        run: echo "Digest de la imagen publicada ${{ steps.construccion.outputs.digest }}"
+
+  # ──────────────────────────────────────────────────────
+  # ETAPA 5: Desplegamos el microservicio en un entorno
+  # simulado usando Docker Compose y verificamos que
+  # la API responde correctamente
+  # ──────────────────────────────────────────────────────
+  despliegue-entorno-simulado:
+    name: Despliegue en Entorno Simulado
+    needs: construccion-imagen-docker
+    runs-on: ubuntu-latest
+    if: github.event_name != 'pull_request'
+
+    steps:
+      - name: Descargar el código fuente
+        uses: actions/checkout@v4
+
+      - name: Levantar el stack completo con Docker Compose
+        run: docker compose up --build -d
+
+      - name: Esperar a que el microservicio esté saludable
+        run: |
+          echo "Esperando que ms-coincidencias-app esté listo..."
+          for i in $(seq 1 24); do
+            STATUS=$(docker inspect --format='{{.State.Health.Status}}' ms-coincidencias-app 2>/dev/null || echo "no_encontrado")
+            echo "Intento $i/24: estado=$STATUS"
+            if [ "$STATUS" = "healthy" ]; then
+              echo "El microservicio está saludable y listo."
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "El microservicio no alcanzó estado healthy en 4 minutos."
+          docker compose logs coincidencias-service
+          exit 1
+
+      - name: Verificar que la API responde correctamente
+        run: |
+          CODIGO_HTTP=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8082/coincidencias)
+          echo "Código de respuesta HTTP: $CODIGO_HTTP"
+          if [ "$CODIGO_HTTP" != "200" ]; then
+            echo "Error: la API no respondió con 200 OK."
+            exit 1
+          fi
+          echo "La API está operativa y respondiendo correctamente."
+
+      - name: Mostrar estado de los contenedores (trazabilidad)
+        if: always()
+        run: |
+          docker compose ps
+          echo "--- Últimos logs del microservicio ---"
+          docker compose logs --tail=50 coincidencias-service
+
+      - name: Detener y limpiar el entorno simulado
+        if: always()
+        run: docker compose down -v
