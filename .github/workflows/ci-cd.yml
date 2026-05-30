@@ -173,7 +173,7 @@ jobs:
 
       - name: Construir y publicar la imagen Docker
         id: construccion
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v7
         with:
           context: .
           push: ${{ github.event_name != 'pull_request' }}
