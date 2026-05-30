@@ -4,9 +4,9 @@ name: Análisis de Seguridad del Código
 # Se ejecuta en cada push, pull request y todos los lunes a las 8am
 on:
   push:
-    branches: [ main, master ]
+    branches: [ main ]
   pull_request:
-    branches: [ main, master ]
+    branches: [ main ]
   schedule:
     - cron: '0 8 * * 1'
 
