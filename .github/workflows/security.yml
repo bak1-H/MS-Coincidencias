@@ -1,5 +1,7 @@
-name: Security Scan
+name: Análisis de Seguridad del Código
 
+# Este workflow analiza el código en busca de vulnerabilidades.
+# Se ejecuta en cada push, pull request y todos los lunes a las 8am
 on:
   push:
     branches: [ main, master ]
@@ -9,25 +11,33 @@ on:
     - cron: '0 8 * * 1'
 
 jobs:
-  snyk-scan:
-    name: Snyk Vulnerability Scan
+
+  # ──────────────────────────────────────────────────────
+  # JOB 1: Escaneamos las dependencias del proyecto con
+  # Snyk para detectar vulnerabilidades conocidas
+  # ──────────────────────────────────────────────────────
+  escaneo-snyk:
+    name: Escaneo de Vulnerabilidades con Snyk
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
+      - name: Descargar el código fuente
         uses: actions/checkout@v4
 
-      - name: Set up JDK 21
+      - name: Configurar Java 21
         uses: actions/setup-java@v4
         with:
           java-version: '21'
           distribution: 'temurin'
           cache: maven
 
-      - name: Build project (skip tests)
+      - name: Dar permisos de ejecución al wrapper de Maven
+        run: chmod +x mvnw
+
+      - name: Compilar el proyecto para el análisis
         run: ./mvnw clean package -DskipTests
 
-      - name: Run Snyk scan
+      - name: Escanear dependencias con Snyk (falla si hay vulnerabilidades altas)
         uses: snyk/actions/maven@master
         continue-on-error: false
         env:
@@ -35,7 +45,7 @@ jobs:
         with:
           args: --severity-threshold=high
 
-      - name: Upload Snyk results to GitHub Security
+      - name: Generar reporte SARIF para GitHub Security
         uses: snyk/actions/maven@master
         continue-on-error: true
         env:
@@ -43,15 +53,20 @@ jobs:
         with:
           args: --severity-threshold=high --sarif-file-output=snyk.sarif
 
-      - name: Upload SARIF to GitHub Code Scanning
+      - name: Subir reporte a la pestaña Security de GitHub
         uses: github/codeql-action/upload-sarif@v3
         if: always()
         with:
           sarif_file: snyk.sarif
         continue-on-error: true
 
-  codeql-scan:
-    name: CodeQL Static Analysis
+  # ──────────────────────────────────────────────────────
+  # JOB 2: Analizamos el código estáticamente con CodeQL
+  # para detectar posibles problemas de seguridad
+  # en el código Java que escribimos
+  # ──────────────────────────────────────────────────────
+  analisis-codeql:
+    name: Análisis Estático del Código con CodeQL
     runs-on: ubuntu-latest
     permissions:
       security-events: write
@@ -59,26 +74,29 @@ jobs:
       contents: read
 
     steps:
-      - name: Checkout code
+      - name: Descargar el código fuente
         uses: actions/checkout@v4
 
-      - name: Initialize CodeQL
+      - name: Inicializar CodeQL para Java
         uses: github/codeql-action/init@v3
         with:
           languages: java
           queries: security-and-quality
 
-      - name: Set up JDK 21
+      - name: Configurar Java 21
         uses: actions/setup-java@v4
         with:
           java-version: '21'
           distribution: 'temurin'
           cache: maven
 
-      - name: Build for CodeQL
+      - name: Dar permisos de ejecución al wrapper de Maven
+        run: chmod +x mvnw
+
+      - name: Compilar el proyecto para el análisis de CodeQL
         run: ./mvnw clean package -DskipTests
 
-      - name: Perform CodeQL Analysis
+      - name: Ejecutar análisis de CodeQL
         uses: github/codeql-action/analyze@v3
         with:
           category: "/language:java"
