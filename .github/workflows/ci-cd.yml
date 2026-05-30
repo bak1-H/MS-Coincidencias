@@ -122,7 +122,7 @@ jobs:
           args: --severity-threshold=high --sarif-file-output=snyk.sarif
 
       - name: Publicar reporte en la pestaña Security de GitHub
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         if: always()
         continue-on-error: true
         with:
