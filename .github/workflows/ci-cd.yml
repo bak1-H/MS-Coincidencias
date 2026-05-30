@@ -38,7 +38,7 @@ jobs:
         run: ./mvnw clean compile -q
 
       - name: Guardar clases compiladas en caché
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: target/
           key: compilacion-${{ github.sha }}
