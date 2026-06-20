@@ -17,6 +17,7 @@ target/
 ### Secretos locales (NUNCA commitear) ###
 .env
 *.env
+.env.example
 
 ### IntelliJ IDEA ###
 .idea

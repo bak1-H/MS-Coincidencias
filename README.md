@@ -303,6 +303,7 @@ Además, la rama `main` quedó protegida en GitHub: no se puede hacer push direc
 ## Reglas para la rama Main
 ![Reglas de Rama](docs/screenshots/mainrules.png)
 
+
 ---
 
 ## El pipeline se frena si algo está mal
@@ -314,9 +315,9 @@ Una de las cosas que pedía esta parte era demostrar que, si aparece una falla c
 
 Como el paso que construye y publica la imagen de Docker depende de que las pruebas, Snyk y SonarCloud terminen bien, si cualquiera de los tres falla **la imagen nunca se construye ni se despliega**.
 
-Para demostrarlo, provoqué una falla a propósito y dejé que el pipeline se detuviera:
+Para demostrarlo:
 
-> _(Aquí va la captura del pipeline en rojo, detenido por el Quality Gate o por Snyk.)_
+![Error Pipeline](docs/screenshots/githuberror.png)
 
 ---
 
