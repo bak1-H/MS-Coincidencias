@@ -1,0 +1,23 @@
+# Configuracion de Prometheus para MS-Coincidencias (IE1)
+# Define cada cuanto recolecta metricas y de donde las obtiene.
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  # Metricas del propio Prometheus (auto-monitoreo)
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]
+
+  # Metricas del microservicio via Spring Boot Actuator
+  - job_name: ms-coincidencias
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ["coincidencias-service:8082"]
+
+  # Metricas empujadas desde el pipeline CI/CD (tiempo de despliegue, cobertura)
+  - job_name: ci-cd-pushgateway
+    honor_labels: true
+    static_configs:
+      - targets: ["pushgateway:9091"]

@@ -12,6 +12,11 @@ target/
 .settings
 .springBeans
 .sts4-cache
+.atl
+.env.example
+### Secretos locales (NUNCA commitear) ###
+.env
+*.env
 
 ### IntelliJ IDEA ###
 .idea
@@ -31,3 +36,8 @@ build/
 
 ### VS Code ###
 .vscode/
+
+### Node / Playwright (tooling de evidencia) ###
+node_modules/
+package-lock.json
+# Los screenshots en docs/ SI se versionan: son la evidencia (Opcion A)

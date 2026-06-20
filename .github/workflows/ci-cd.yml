@@ -127,13 +127,55 @@ jobs:
           sarif_file: snyk.sarif
 
   # ──────────────────────────────────────────────────────
+  # ETAPA 3.5: Análisis de calidad con SonarCloud (IE5)
+  # Genera cobertura con JaCoCo y la envía a SonarCloud.
+  # Espera el Quality Gate: si NO pasa, el job falla y
+  # detiene el pipeline antes de construir la imagen (IE6).
+  # ──────────────────────────────────────────────────────
+  analisis-calidad:
+    name: Análisis de Calidad (SonarCloud)
+    needs: compilacion
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar el código fuente
+        uses: actions/checkout@v4
+        with:
+          # SonarCloud necesita el historial completo para el blame
+          fetch-depth: 0
+
+      - name: Configurar Java 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Dar permisos de ejecución al wrapper de Maven
+        run: chmod +x mvnw
+
+      - name: Ejecutar pruebas con cobertura y análisis SonarCloud (bloquea si falla el Quality Gate)
+        run: ./mvnw -B verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar -Dsonar.qualitygate.wait=true
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Guardar reporte de cobertura como evidencia
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cobertura-jacoco-${{ github.sha }}
+          path: target/site/jacoco/
+          retention-days: 15
+
+  # ──────────────────────────────────────────────────────
   # ETAPA 4: Construimos la imagen Docker y la subimos al
   # registro de contenedores de GitHub (ghcr.io)
-  # Solo se ejecuta si las pruebas y el análisis pasaron
+  # Solo se ejecuta si las pruebas, el análisis de seguridad
+  # y el de calidad pasaron
   # ──────────────────────────────────────────────────────
   construccion-imagen-docker:
     name: Construcción y Publicación de Imagen Docker
-    needs: [pruebas-unitarias, analisis-seguridad]
+    needs: [pruebas-unitarias, analisis-seguridad, analisis-calidad]
     runs-on: ubuntu-latest
     permissions:
       contents: read

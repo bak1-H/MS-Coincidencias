@@ -1,0 +1,13 @@
+# Carga automatica de los dashboards en JSON desde el directorio montado
+apiVersion: 1
+
+providers:
+  - name: MS-Coincidencias
+    orgId: 1
+    folder: ""
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 10
+    allowUiUpdates: true
+    options:
+      path: /var/lib/grafana/dashboards

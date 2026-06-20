@@ -97,10 +97,72 @@ services:
     networks:
       - ms-coincidencias-network
 
+  # ── Observabilidad (IE1 / IE3) ──────────────────────────────
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    container_name: ms-coincidencias-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.retention.time=15d"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:9090/-/healthy || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
+    depends_on:
+      coincidencias-service:
+        condition: service_healthy
+    networks:
+      - ms-coincidencias-network
+
+  # Recibe metricas empujadas desde el pipeline CI/CD (deploy time, coverage)
+  pushgateway:
+    image: prom/pushgateway:v1.9.0
+    container_name: ms-coincidencias-pushgateway
+    ports:
+      - "9091:9091"
+    restart: unless-stopped
+    networks:
+      - ms-coincidencias-network
+
+  grafana:
+    image: grafana/grafana:11.2.0
+    container_name: ms-coincidencias-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      # Acceso anonimo con rol Viewer: permite ver dashboards sin login
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: "Viewer"
+      GF_AUTH_DISABLE_LOGIN_FORM: "false"
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_USERS_DEFAULT_THEME: light
+    volumes:
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana_data:/var/lib/grafana
+    depends_on:
+      prometheus:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - ms-coincidencias-network
+
 volumes:
   postgres_data:
     driver: local
   rabbitmq_data:
+    driver: local
+  prometheus_data:
+    driver: local
+  grafana_data:
     driver: local
 
 networks:
