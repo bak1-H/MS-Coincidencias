@@ -37,6 +37,8 @@
 		<sonar.projectKey>bak1-H_MS-Coincidencias</sonar.projectKey>
 		<sonar.host.url>https://sonarcloud.io</sonar.host.url>
 		<sonar.coverage.jacoco.xmlReportPaths>${project.build.directory}/site/jacoco/jacoco.xml</sonar.coverage.jacoco.xmlReportPaths>
+		<!-- El analisis se enfoca en el codigo de la aplicacion, no en la config de CI/infra -->
+		<sonar.exclusions>.github/**,scripts/**,monitoring/**</sonar.exclusions>
 	</properties>
 	<dependencies>
 		<dependency>
