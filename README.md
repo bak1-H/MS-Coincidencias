@@ -150,7 +150,6 @@ Direcciones útiles del microservicio:
 | Para ver... | Dirección |
 |---|---|
 | La API | http://localhost:8082/coincidencias |
-| Swagger | http://localhost:8082/swagger-ui.html |
 | Health check | http://localhost:8082/actuator/health |
 | Panel de RabbitMQ | http://localhost:15672 (guest / guest) |
 
