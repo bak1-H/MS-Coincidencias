@@ -237,6 +237,7 @@ jobs:
     needs: construccion-imagen-docker
     runs-on: ubuntu-latest
     if: github.event_name != 'pull_request'
+    environment: production
 
     steps:
       - name: Descargar el código fuente
