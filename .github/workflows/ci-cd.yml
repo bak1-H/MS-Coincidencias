@@ -262,15 +262,24 @@ jobs:
           docker compose logs coincidencias-service
           exit 1
 
-      - name: Verificar que la API responde correctamente
+      - name: Pruebas de aceptación antes de producción
         run: |
-          CODIGO_HTTP=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8082/coincidencias)
-          echo "Código de respuesta HTTP: $CODIGO_HTTP"
-          if [ "$CODIGO_HTTP" != "200" ]; then
-            echo "Error: la API no respondió con 200 OK."
-            exit 1
-          fi
-          echo "La API está operativa y respondiendo correctamente."
+          echo "1) El endpoint de salud debe reportar UP"
+          SALUD=$(curl -s http://localhost:8082/actuator/health)
+          echo "Respuesta: $SALUD"
+          echo "$SALUD" | grep -q '"status":"UP"' || { echo "Error: el servicio no reporta estado UP."; exit 1; }
+
+          echo "2) El listado de coincidencias debe responder 200"
+          CODIGO_LISTADO=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8082/coincidencias)
+          echo "Código de respuesta HTTP: $CODIGO_LISTADO"
+          [ "$CODIGO_LISTADO" = "200" ] || { echo "Error: /coincidencias no respondió 200 OK."; exit 1; }
+
+          echo "3) Una coincidencia inexistente debe respetar el contrato de negocio (404)"
+          CODIGO_INEXISTENTE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8082/coincidencias/999999)
+          echo "Código de respuesta HTTP: $CODIGO_INEXISTENTE"
+          [ "$CODIGO_INEXISTENTE" = "404" ] || { echo "Error: /coincidencias/999999 debía responder 404."; exit 1; }
+
+          echo "Las pruebas de aceptación pasaron correctamente."
 
       - name: Mostrar estado de los contenedores (trazabilidad)
         if: always()
