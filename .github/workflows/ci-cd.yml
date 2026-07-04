@@ -1,9 +1,9 @@
 name: Pipeline de Integración y Entrega Continua
 
-# Este pipeline se activa cada vez que hacemos push o un pull request a main/master
+# Este pipeline se activa en cada push a main o develop, y en cada pull request a main
 on:
   push:
-    branches: [main]
+    branches: [main, develop]
   pull_request:
     branches: [main]
 
@@ -236,7 +236,7 @@ jobs:
     name: Despliegue en Entorno Simulado
     needs: construccion-imagen-docker
     runs-on: ubuntu-latest
-    if: github.event_name != 'pull_request'
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     environment: production
 
     steps:
