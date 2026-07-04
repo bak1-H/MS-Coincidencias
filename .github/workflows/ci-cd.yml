@@ -136,6 +136,8 @@ jobs:
     name: Análisis de Calidad (SonarCloud)
     needs: compilacion
     runs-on: ubuntu-latest
+    # SonarCloud gratuito solo analiza la rama main y Pull Requests.
+    if: github.ref == 'refs/heads/main' || github.event_name == 'pull_request'
     steps:
       - name: Descargar el código fuente
         uses: actions/checkout@v4
