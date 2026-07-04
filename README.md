@@ -3,7 +3,7 @@
 **Asignatura:** Ingeniería DevOps
 **Integrante:** Maximiliano Arturo Huerta Gonzalez
 
-Este es el microservicio que desarrollé para el ramo. En esta segunda entrega le agregué toda la parte de observabilidad (monitoreo, métricas y un dashboard) y le sumé chequeos de calidad y seguridad al pipeline. Si quieres ir directo a esa parte, está más abajo en [Parte 2 — Observabilidad, métricas y cumplimiento](#parte-2--observabilidad-métricas-y-cumplimiento).
+Este es el microservicio que desarrollé para el ramo. En esta Tercera entrega le agregué toda la parte de observabilidad (monitoreo, métricas y un dashboard) y le sumé chequeos de calidad y seguridad al pipeline. Si quieres ir directo a esa parte, está más abajo en [Parte 2 — Observabilidad, métricas y cumplimiento](#parte-2--observabilidad-métricas-y-cumplimiento).
 
 ---
 
@@ -150,7 +150,6 @@ Direcciones útiles del microservicio:
 | Para ver... | Dirección |
 |---|---|
 | La API | http://localhost:8082/coincidencias |
-| Swagger | http://localhost:8082/swagger-ui.html |
 | Health check | http://localhost:8082/actuator/health |
 | Panel de RabbitMQ | http://localhost:15672 (guest / guest) |
 
