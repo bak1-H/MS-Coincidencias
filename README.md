@@ -3,7 +3,7 @@
 **Asignatura:** Ingeniería DevOps
 **Integrante:** Maximiliano Arturo Huerta Gonzalez
 
-Este es el microservicio que desarrollé para el ramo. En esta Tercera entrega le agregué toda la parte de observabilidad (monitoreo, métricas y un dashboard) y le sumé chequeos de calidad y seguridad al pipeline. Si quieres ir directo a esa parte, está más abajo en [Parte 2 — Observabilidad, métricas y cumplimiento](#parte-2--observabilidad-métricas-y-cumplimiento).
+Este es el microservicio que desarrollé para el ramo. En la Evaluación Parcial 3 le agregué la parte de observabilidad (monitoreo, métricas y un dashboard) y chequeos de calidad y seguridad al pipeline — ver [Parte 2 — Observabilidad, métricas y cumplimiento](#parte-2--observabilidad-métricas-y-cumplimiento). Para la Evaluación Final Transversal sumé gobernanza sobre el repositorio (protección de rama, aprobación manual de despliegues) y pruebas de aceptación reales antes de desplegar — ver [Parte 3 — Gobernanza, cumplimiento y despliegue continuo](#parte-3--gobernanza-cumplimiento-y-despliegue-continuo-eft).
 
 ---
 
@@ -317,6 +317,74 @@ Como el paso que construye y publica la imagen de Docker depende de que las prue
 Para demostrarlo:
 
 ![Error Pipeline](docs/screenshots/githuberror.png)
+
+---
+
+# Parte 3 — Gobernanza, cumplimiento y despliegue continuo (EFT)
+
+En esta entrega final le sumé al proyecto todo lo relacionado con gobernanza del repositorio: protección real de la rama `main`, aprobación manual antes de desplegar a producción, y pruebas de aceptación reales en vez de un chequeo genérico.
+
+## Estrategia de ramificación
+
+El repositorio usa una variante simplificada de **GitFlow**:
+
+- **`main`** — rama estable, protegida, siempre desplegable.
+- **`develop`** — rama de integración, donde se juntan los cambios antes de pasar a `main`.
+- **`feature/*` y `hotfix/*`** — ramas temporales para cambios puntuales, con su descripción propia.
+
+No se usa una rama `release/*` como en el GitFlow original.
+
+> **Por que?:** Deje fuera la rama release mas que nada por que estaba trabajando solo, no la vi necesaria para demostrar la estrategia, solo con 2 ramas podia demostrar un "real" flujo de trabajo entre ramas.
+
+## El pipeline, actualizado
+
+El pipeline (`.github/workflows/ci-cd.yml`) ahora se activa en:
+
+- **Push a `main` o `develop`** — corren compilación, pruebas unitarias y análisis de seguridad (Snyk) en ambas ramas.
+- **Pull request a `main`** — corren las 6 etapas completas, incluyendo SonarCloud, construcción de imagen y despliegue.
+
+**Nota importante:** SonarCloud (plan gratuito) solo puede analizar la rama `main` y Pull Requests, no ramas de desarrollo como `develop`. Por eso ese job se salta explícitamente en push a `develop` — me di cuenta luego de tratar de hacerlo en develop, se hizo la correción segun las limitaciones.
+
+## Pruebas de aceptación antes de producción
+
+Antes de este cambio, el pipeline solo verificaba que `/coincidencias` respondiera `200`. Ahora corre 3 verificaciones reales antes de dar por bueno el despliegue:
+
+1. `/actuator/health` debe reportar `"status":"UP"`.
+2. `/coincidencias` debe responder `200` (listado disponible).
+3. `/coincidencias/999999` (un ID que no existe) debe responder `404` — valida que el negocio de la API funciona, no solo que el servidor está "vivo".
+
+## Gobernanza del repositorio en GitHub
+
+La rama `main` está protegida con:
+
+- Pull Request obligatorio — no se permite push directo.
+- **6 checks obligatorios** que deben pasar antes de poder mergear: Compilación, Pruebas Unitarias, Seguridad (Snyk), Calidad (SonarCloud), Escaneo de Vulnerabilidades (Snyk) y CodeQL.
+- `enforce_admins` activo — ni siquiera el dueño del repositorio puede saltarse estas reglas.
+
+Además, el despliegue a producción pasa por un **Environment de GitHub** llamado `production`, configurado con un reviewer obligatorio. Esto significa que el job de despliegue queda pausado ("Deployment protection rules") hasta que alguien con permisos lo apruebe manualmente desde la pestaña Actions — quedando un registro auditable de quién aprobó y cuándo.
+
+![Reglas de Rama](docs/screenshots/rulesenvioroments.png)
+
+## Caso real: el pipeline bloqueó un merge por vulnerabilidades
+
+Durante la preparación de esta entrega, Snyk detectó 3 vulnerabilidades **HIGH** en dependencias transitivas:
+
+- `logback-core@1.5.34` — Expression Injection.
+- `tomcat-embed-core@11.0.22` — Improper Authentication.
+- `tomcat-embed-core@11.0.22` — Detection of Error Condition Without Action.
+
+El pipeline falló y no llegó a construir la imagen Docker. Se corrigieron las versiones en `pom.xml` (`tomcat.version` a `11.0.23`, se agregó `logback.version` en `1.5.36`), y al volver a correr el pipeline los 6 checks pasaron en verde. Es evidencia real — no solo teórica — de que el gate de seguridad funciona como se espera (IE9).
+
+## Secrets: dos bóvedas separadas
+
+GitHub tiene bóvedas de secrets independientes para **Actions** y para **Dependabot**. Tener `SONAR_TOKEN` y `SNYK_TOKEN` cargados en Actions no los hace visibles para los workflows que dispara Dependabot
+![Secretos](docs/screenshots/githubsecrets.png)
+
+
+
+## Orquestación con Docker Compose (sin Kubernetes)
+
+Igual que en la Parte 2, el despliegue sigue orquestado con Docker Compose y no con Kubernetes — el curso no cubrió ese contenido, y la propia rúbrica de esta evaluación acepta "Docker Compose, Kubernetes u otra" como forma válida de orquestación de contenedores.
 
 ---
 
